@@ -1,0 +1,236 @@
+>>>malloy
+
+source: customer_data is duckdb.table('./customers.csv') extend{
+    rename: Customer_ID is `Customer ID`
+    rename: Date_Of_Birth is `Date Of Birth`
+    rename: Job_Title is `Job Title`
+    primary_key: Customer_ID
+
+}
+
+source: product_data is duckdb.table('./products.csv') extend{
+    rename: Product_ID is `Product ID`
+    rename: Production_cost is `Production Cost`
+    rename: SubCategory is `Sub Category`
+    rename: Description_DE is `Description DE`
+    rename: Description_EN is `Description EN`
+    rename: Description_FR is `Description FR`
+    rename: Description_PT is `Description PT`
+    rename: Description_ZH is `Description ZH`
+    primary_key: Product_ID
+}
+source: store_data is duckdb.table('./stores.csv') extend{
+    rename: Store_ID is `Store ID`
+    rename: Store_Name is `Store Name`
+    rename: ZIP_Code is `ZIP Code`
+    rename: Number_of_Employees is `Number of Employees`
+    primary_key: Store_ID
+
+}
+
+
+
+source: order_data is duckdb.table('./transactions.csv') extend{
+
+  join_one: customer_data on Customer_ID = customer_data.Customer_ID
+  join_one: product_data on Product_ID = product_data.Product_ID
+  join_one: store_data on Store_ID = store_data.Store_ID
+}
+// The order_data table is a join of customer_data, product_data, and store_data
+>>>malloy
+run: order_data -> {
+  group_by: store_data.Country
+  aggregate: total_sales is Invoice_Total.sum()
+  order_by: total_sales desc
+}
+
+// This query will give you the total sales per country, ordered by total sales in descending order.
+>>>malloy
+# bar_chart
+run: order_data -> {
+  group_by: store_data.Country
+  aggregate: total_sales is Invoice_Total.sum()
+  order_by: total_sales desc
+}
+
+// This query will give you the total sales per country, ordered by total sales in descending order.
+>>>malloy
+run: order_data -> {
+    group_by: store_data.Country
+    group_by: product_data.SubCategory
+    aggregate: total_sales is Invoice_Total.sum()
+    total_production_costs is product_data.Production_cost.sum()
+    order_by: Country desc
+}
+// This query will give you the total production costs and sales for each product per country
+>>>malloy
+run: order_data -> {
+    
+    group_by: product_data.Description_EN
+    group_by: product_data.Category
+    aggregate: total_sales is Invoice_Total.sum()
+    order_by: total_sales desc
+    limit: 5
+}
+// This query will give you the top 5 products by total sales, ordered by total sales in descending order.
+>>>malloy
+run: order_data -> {
+    group_by: customer_data.Gender
+    group_by: product_data.Description_EN
+    group_by: product_data.Category
+    aggregate: total_sales is Invoice_Total.sum() {where: customer_data.Gender = 'M'}
+    
+    order_by: total_sales desc
+    limit: 10
+}
+// This query will give you the top 10 products for men by total sales, ordered by total sales in descending order.
+>>>malloy
+run: order_data -> {
+   group_by: customer_data.Gender
+    group_by: product_data.Description_EN
+    group_by: product_data.Category
+    aggregate: total_sales is Invoice_Total.sum() {where: customer_data.Gender = 'F'}
+    order_by: total_sales desc
+    limit: 10
+}
+// This query will give you the top 5 products for women by total sales, ordered by total sales in descending order.
+>>>malloy
+run: order_data -> {
+    group_by: product_data.Description_EN
+    group_by: product_data.Category
+    aggregate: total_sales is Invoice_Total.sum()
+    order_by: total_sales asc
+    limit: 10
+}
+// This query will give you the bottom 10 products by total sales, ordered by total sales in ascending order.
+>>>malloy
+# dashboard
+query: best_worst_stores is order_data -> {
+  group_by: store_data.Country
+  nest: best_store is {
+    group_by: store_data.Store_Name
+    aggregate: total_sales is Invoice_Total.sum()
+    group_by: Currency
+    order_by: total_sales desc
+    limit: 2
+  }
+  nest: worst_store is {
+    group_by: store_data.Store_Name
+    aggregate: total_sales is Invoice_Total.sum()
+    group_by: Currency
+
+    order_by: total_sales asc
+    limit: 2
+  }
+}
+// This query will give you the best and worst store in each country by total sales.
+>>>malloy
+# bar_chart
+run: order_data -> {
+    group_by: store_data.Store_Name
+    aggregate: total_sales is Invoice_Total.sum() {where: store_data.Country = 'United States'}
+limit: 5
+}
+// This query will give you the total sales per store in the US.
+>>>malloy
+# bar_chart
+query: sales_by_city is order_data -> {
+  group_by: store_data.City
+  aggregate: total_sales is Invoice_Total.sum()
+  order_by: total_sales desc
+}
+
+// This query will give you the total sales per city, ordered by total sales in descending order.
+>>>malloy
+run: customer_data -> {
+    group_by: Country
+    aggregate: total_customers is count()
+    order_by: total_customers desc
+    limit: 7
+}
+// This query will give you the top 7 countries by total customers, ordered by total customers in descending order.
+>>>malloy
+query: top_bottom_categories_chart is order_data -> {
+  nest: top_categories is {
+   group_by: product_data.SubCategory
+
+   aggregate: total_sales is Invoice_Total.sum()
+   order_by: total_sales desc
+   limit: 10
+  }
+  nest: bottom_categories is {
+    group_by: product_data.SubCategory
+
+    aggregate: total_sales is Invoice_Total.sum()
+    order_by: total_sales asc
+    limit: 10
+  }
+}
+// This query will give you the top and bottom 10 categories 
+// by total sales, ordered by total sales in descending order.
+>>>malloy
+# line_chart
+run: order_data -> {
+    group_by: customer_data.Job_Title
+    aggregate: total_spent is Invoice_Total.sum() {where: customer_data.Job_Title is not null}
+    order_by: total_spent desc
+    limit: 25
+}
+// This query will give you the top 25 job titles by total spending, ordered by total spending in descending order.
+>>>malloy
+
+run: order_data -> {
+    group_by: store_data.Country
+    group_by: Transaction_Type
+    aggregate: order_count is count()
+     total_sales is Invoice_Total.sum()
+    order_by: order_count desc
+}
+
+// This query will give you the total sales and order count per country and transaction type, ordered by order count in descending order.
+>>>malloy
+# bar_chart
+run: order_data -> {
+  group_by: product_data.Category
+  aggregate: total_sales is Invoice_Total.sum()
+  order_by: total_sales desc
+  limit: 10
+}
+// This query will give you the top 10 product categories by total sales, ordered by total sales in descending order.
+>>>malloy
+run: order_data -> {
+    group_by: customer_data.Gender
+    aggregate: total_sales is Invoice_Total.sum()
+    order_by: total_sales desc
+}
+// This query will give you the total sales per gender, ordered by total sales in descending order.
+>>>malloy
+
+# bar_chart
+run: order_data -> {
+    group_by: customer_data.Country
+    group_by: Currency 
+    group_by: Currency_Symbol
+    aggregate: total_sales is Invoice_Total.sum()
+    
+}
+// This query will give you the total sales per country, ordered by total sales in descending order.
+>>>malloy
+
+run: order_data -> {
+    
+    group_by: product_data.Description_EN
+    aggregate: total_returns is count() {where: Transaction_Type = 'Return'}
+    order_by: total_returns desc
+    limit: 10
+}
+>>>malloy
+run: customer_data -> {
+  extend: generation is case {
+    when: Date_Of_Birth >= "1946-01-01" and Date_Of_Birth <= "1964-12-31" then "Baby Boomer"
+    when: Date_Of_Birth >= "1965-01-01" and Date_Of_Birth <= "1980-12-31" then "Generation X"
+    when: Date_Of_Birth >= "1981-01-01" and Date_Of_Birth <= "1996-12-31" then "Millennial"
+    when: Date_Of_Birth >= "1997-01-01" and Date_Of_Birth <= "2012-12-31" then "Generation Z"
+    else "Unknown"
+  }
+}
